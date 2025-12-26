@@ -31,27 +31,21 @@ jobs:
       - name: Deploy OpenSearch
         run: |
           kubectl apply -f k8s/opensearch.yaml
+          kubectl rollout restart statefulset/opensearch -n logging
           echo "Waiting for OpenSearch to be ready..."
-          kubectl wait --for=condition=ready pod \
-            -l app=opensearch \
-            -n logging \
-            --timeout=360s
-
-      - name: Deploy OpenSearch Dashboards
-        run: |
-          kubectl apply -f k8s/dashboards.yaml
-          echo "Waiting for Dashboards to be ready..."
-          kubectl wait --for=condition=ready pod \
-            -l app=opensearch-dashboards \
-            -n logging \
-            --timeout=300s
+          kubectl rollout status statefulset/opensearch -n logging --timeout=600s
 
       - name: Deploy Fluent Bit
         run: |
           kubectl apply -f k8s/fluent-bit.yaml
+          kubectl rollout restart daemonset/fluent-bit -n logging
           echo "Waiting for Fluent Bit to be ready..."
-          kubectl wait --for=condition=ready pod \
-            -l app=fluent-bit \
-            -n logging \
-            --timeout=300s
+          kubectl rollout status daemonset/fluent-bit -n logging --timeout=300s
+
+      - name: Deploy OpenSearch Dashboards
+        run: |
+          kubectl apply -f k8s/dashboards.yaml
+          kubectl rollout restart deployment/opensearch-dashboards -n logging
+          echo "Waiting for Dashboards to be ready..."
+          kubectl rollout status deployment/opensearch-dashboards -n logging --timeout=400s
 

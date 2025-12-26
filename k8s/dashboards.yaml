@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: opensearch-dashboards
+  namespace: logging
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: opensearch-dashboards
+  template:
+    metadata:
+      labels:
+        app: opensearch-dashboards
+    spec:
+      containers:
+      - name: opensearch-dashboards
+        image: opensearchproject/opensearch-dashboards:3.4.0
+        ports:
+        - containerPort: 5601
+        env:
+        - name: OPENSEARCH_HOSTS
+          value: '["http://opensearch.logging.svc.cluster.local:9200"]'
+        - name: DISABLE_SECURITY_DASHBOARDS_PLUGIN
+          value: "true"
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "50m"
+          limits:
+            memory: "256Mi"
+            cpu: "150m"
+
+        startupProbe:
+          httpGet:
+            path: /api/status
+            port: 5601
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          failureThreshold: 30
+          timeoutSeconds: 5
+
+        livenessProbe:
+          httpGet:
+            path: /api/status
+            port: 5601
+          initialDelaySeconds: 120
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: opensearch-dashboards
+  namespace: logging
+spec:
+  type: ClusterIP
+  selector:
+    app: opensearch-dashboards
+  ports:
+  - port: 5601
+    targetPort: 5601

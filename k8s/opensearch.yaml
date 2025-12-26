@@ -1,0 +1,106 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: logging
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: opensearch-config
+  namespace: logging
+data:
+  opensearch.yml: |
+    cluster.name: logging-cluster
+    node.name: opensearch
+    discovery.type: single-node
+    plugins.security.disabled: true
+    network.host: 0.0.0.0
+    node.store.allow_mmap: false
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: opensearch
+  namespace: logging
+spec:
+  serviceName: opensearch
+  replicas: 1
+  selector:
+    matchLabels:
+      app: opensearch
+  template:
+    metadata:
+      labels:
+        app: opensearch
+    spec:
+      initContainers:
+      - name: fix-permissions
+        image: busybox:1.28
+        command: ["sh", "-c", "chown -R 1000:1000 /usr/share/opensearch/data"]
+        volumeMounts:
+        - name: opensearch-data
+          mountPath: /usr/share/opensearch/data
+      containers:
+      - name: opensearch
+        image: opensearchproject/opensearch:3.4.0
+        ports:
+        - containerPort: 9200
+          name: http
+        env:
+        - name: OPENSEARCH_JAVA_OPTS
+          value: "-Xms320m -Xmx320m"
+        - name: DISABLE_SECURITY_PLUGIN
+          value: "true"
+        resources:
+          requests:
+            cpu: 100m
+            memory: 640Mi
+          limits:
+            cpu: 600m
+            memory: 896Mi
+        startupProbe:
+          httpGet:
+            path: /_cat/health
+            port: 9200
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          failureThreshold: 30
+        livenessProbe:
+          httpGet:
+            path: /_cat/health
+            port: 9200
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        volumeMounts:
+        - name: opensearch-config
+          mountPath: /usr/share/opensearch/config/opensearch.yml
+          subPath: opensearch.yml
+        - name: opensearch-data
+          mountPath: /usr/share/opensearch/data
+      volumes:
+      - name: opensearch-config
+        configMap:
+          name: opensearch-config
+  volumeClaimTemplates:
+  - metadata:
+      name: opensearch-data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 2Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: opensearch
+  namespace: logging
+spec:
+  selector:
+    app: opensearch
+  ports:
+  - name: http
+    port: 9200
+    targetPort: 9200
+---

@@ -38,29 +38,16 @@ logging-service/
 ├── requirements.txt            # Python dependencies
 ├── app.py                      # Sample Flask app with structured JSON logging
 └── k8s/
-    ├── 01-opensearch.yaml          # OpenSearch StatefulSet + ConfigMap
-    ├── 02-dashboards.yaml          # OpenSearch Dashboards Deployment
-    ├── 03-fluent-bit.yaml          # Fluent Bit DaemonSet + ConfigMap + RBAC
-    ├── 04-sample-app.yaml          # Sample app Deployment + Service
-    └── init-opensearch.sh          # Script to initialize OpenSearch indices
+    ├── opensearch.yaml          # OpenSearch StatefulSet + ConfigMap
+    ├── dashboards.yaml          # OpenSearch Dashboards Deployment
+    └── fluent-bit.yaml          # Fluent Bit DaemonSet + ConfigMap + RBAC
 ```
 
 ---
 
 ## Quick Start
 
-### 1. Build and Push Sample App Docker Image
-
-```bash
-# Build the sample Flask app image
-docker build -t crypto-tracker/logging-service:latest .
-
-# For local K8s clusters, load image directly:
-# minikube image load crypto-tracker/logging-service:latest
-# kind load docker-image crypto-tracker/logging-service:latest
-```
-
-### 2. Deploy to Kubernetes
+### 1. Deploy to Kubernetes
 
 ```bash
 # Create namespace and deploy OpenSearch
@@ -79,44 +66,7 @@ kubectl apply -f k8s/04-sample-app.yaml
 kubectl get pods -n logging
 ```
 
-### 3. Initialize OpenSearch
-
-```bash
-# Option A: Run init script from outside cluster
-chmod +x k8s/init-opensearch.sh
-./k8s/init-opensearch.sh
-
-# Option B: Port-forward and curl manually
-kubectl port-forward -n logging svc/opensearch 9200:9200
-
-# In another terminal, run:
-curl -k -X PUT "https://localhost:9200/_index_template/app-logs-template" \
-  -H "Content-Type: application/json" \
-  -u "admin:OpenSearchPassword123!" \
-  -d '{
-    "index_patterns": ["app-logs-*"],
-    "template": {
-      "settings": {
-        "number_of_shards": 1,
-        "number_of_replicas": 0
-      },
-      "mappings": {
-        "properties": {
-          "timestamp": { "type": "date" },
-          "level": { "type": "keyword" },
-          "logger": { "type": "keyword" },
-          "message": { "type": "text" },
-          "module": { "type": "keyword" },
-          "function": { "type": "keyword" },
-          "line": { "type": "long" },
-          "exception": { "type": "text" }
-        }
-      }
-    }
-  }'
-```
-
-### 4. Access OpenSearch Dashboards
+### 2. Access OpenSearch Dashboards
 
 ```bash
 # Port-forward to OpenSearch Dashboards
@@ -130,18 +80,6 @@ kubectl port-forward -n logging svc/opensearch-dashboards 5601:5601
 
 ## Testing the Setup
 
-### Generate Sample Logs
-
-```bash
-# Port-forward to sample app
-kubectl port-forward -n logging svc/sample-app 5000:5000
-
-# In another terminal, generate some logs:
-curl http://localhost:5000/api/data
-curl http://localhost:5000/api/error  # Will generate error logs
-curl http://localhost:5000/health
-```
-
 ### View Logs in Dashboards
 
 1. Open OpenSearch Dashboards at `http://localhost:5601`
@@ -153,7 +91,7 @@ curl http://localhost:5000/health
 
 ---
 
-## How to Add Logging to Your Python App
+## How to Add Logging to Python App
 
 ### 1. Use Structured JSON Logging
 
@@ -271,7 +209,7 @@ To add authentication:
 ### Check OpenSearch Cluster Status
 
 ```bash
-kubectl exec -n logging opensearch-0 -- curl -k -u admin:OpenSearchPassword123! https://localhost:9200/_cluster/health
+kubectl exec -n logging opensearch-0 -- curl https://localhost:9200/_cluster/health
 ```
 
 ### View Fluent Bit Logs
@@ -289,35 +227,12 @@ kubectl logs -n logging -l app=sample-app -f
 ### Verify Index Creation
 
 ```bash
-kubectl exec -n logging opensearch-0 -- curl -k -u admin:OpenSearchPassword123! https://localhost:9200/_cat/indices
+kubectl exec -n logging opensearch-0 -- curl https://localhost:9200/_cat/indices
 ```
 
 ### Port-forward to OpenSearch
 
 ```bash
 kubectl port-forward -n logging svc/opensearch 9200:9200
-curl -k -u admin:OpenSearchPassword123! https://localhost:9200/_cat/health
+curl https://localhost:9200/_cat/health
 ```
-
----
-
-## Status
-
-- ✅ Centralized logging architecture defined
-- ✅ Sample Flask app with structured JSON logging
-- ✅ Kubernetes manifests for OpenSearch, Dashboards, and Fluent Bit
-- ✅ Index templates and initialization script
-- ⏳ Alerting rules and automation (planned)
-- ⏳ TLS/mTLS security hardening (planned)
-- ⏳ Helm chart packaging (planned)
-
----
-
-## Notes
-
-This setup is designed for **educational and development purposes**. It focuses on simplicity, clarity, and low operational cost. For production use:
-- Add authentication and TLS encryption
-- Set up resource quotas and pod disruption budgets
-- Configure alerting and notification rules
-- Implement automated backups
-- Monitor cluster health and log volume

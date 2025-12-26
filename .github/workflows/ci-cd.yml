@@ -1,0 +1,47 @@
+name: Deploy to AKS
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy OpenSearch
+        run: |
+          kubectl apply -f k8s/opensearch.yaml
+          echo "Waiting for OpenSearch to be ready..."
+          kubectl wait --for=condition=ready pod \
+            -l app=opensearch \
+            -n logging \
+            --timeout=360s
+
+      - name: Deploy OpenSearch Dashboards
+        run: |
+          kubectl apply -f k8s/dashboards.yaml
+          echo "Waiting for Dashboards to be ready..."
+          kubectl wait --for=condition=ready pod \
+            -l app=opensearch-dashboards \
+            -n logging \
+            --timeout=300s
+
+      - name: Deploy Fluent Bit
+        run: |
+          kubectl apply -f k8s/fluent-bit.yaml
+          echo "Waiting for Fluent Bit to be ready..."
+          kubectl wait --for=condition=ready pod \
+            -l app=fluent-bit \
+            -n logging \
+            --timeout=300s
+

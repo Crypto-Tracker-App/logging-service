@@ -48,7 +48,7 @@ spec:
           name: http
         env:
         - name: OPENSEARCH_JAVA_OPTS
-          value: "-Xms320m -Xmx320m"
+          value: "-Xms310m -Xmx310m"
         - name: DISABLE_SECURITY_PLUGIN
           value: "true"
         resources:
@@ -57,7 +57,7 @@ spec:
             memory: 640Mi
           limits:
             cpu: 600m
-            memory: 896Mi
+            memory: 750Mi
         startupProbe:
           httpGet:
             path: /_cat/health

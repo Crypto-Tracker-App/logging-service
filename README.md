@@ -95,7 +95,7 @@ kubectl port-forward -n logging svc/opensearch-dashboards 5601:5601
 
 ### 1. Use Structured JSON Logging
 
-See [app.py](app.py) for a complete example. Key points:
+See [example-logger.py](example-logger.py) for a complete example. Key points:
 
 - Create a custom `JSONFormatter` that inherits from `logging.Formatter`
 - Include timestamp, level, logger name, message, and context fields

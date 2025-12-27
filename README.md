@@ -102,35 +102,19 @@ See [app.py](app.py) for a complete example. Key points:
 - Add request/exception details when available
 - **Always log to stdout**, not files
 
-### 2. Example Integration
+### 2. Example __init__.py
 
 ```python
-import json
-import logging
-import sys
-from datetime import datetime
+from flask import Flask
 
-class JSONFormatter(logging.Formatter):
-    def format(self, record):
-        log_data = {
-            "timestamp": datetime.utcnow().isoformat() + "Z",
-            "level": record.levelname,
-            "logger": record.name,
-            "message": record.getMessage(),
-        }
-        if record.exc_info:
-            log_data["exception"] = self.formatException(record.exc_info)
-        return json.dumps(log_data)
-
-# Configure logging
-handler = logging.StreamHandler(sys.stdout)
-handler.setFormatter(JSONFormatter())
-logger = logging.getLogger(__name__)
-logger.addHandler(handler)
-
-# Use it
-logger.info("Application started")
-logger.error("An error occurred", exc_info=True)
+def create_app():
+    app = Flask(__name__)
+    
+    # Set up request logging middleware
+    from app.utils.logger import setup_request_logging
+    setup_request_logging(app)
+    
+    return app
 ```
 
 ### 3. Log to stdout
